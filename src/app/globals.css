@@ -1,0 +1,132 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-mono-code);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+  /* Claude design system colors */
+  --color-claude-terracotta: #c96442;
+  --color-claude-coral: #d97757;
+  --color-claude-parchment: #f5f4ed;
+  --color-claude-ivory: #faf9f5;
+  --color-claude-warm-sand: #e8e6dc;
+  --color-claude-near-black: #141413;
+  --color-claude-dark-surface: #30302e;
+  --color-claude-charcoal: #4d4c48;
+  --color-claude-olive: #5e5d59;
+  --color-claude-stone: #87867f;
+  --color-claude-dark-warm: #3d3d3a;
+  --color-claude-warm-silver: #b0aea5;
+  --color-claude-border-cream: #f0eee6;
+  --color-claude-border-warm: #e8e6dc;
+  --color-claude-ring-warm: #d1cfc5;
+  --color-claude-ring-deep: #c2c0b6;
+}
+
+/* Claude Warm Parchment Theme */
+:root {
+  --background: #faf0ec;
+  --foreground: #141413;
+  --card: #ffffff;
+  --card-foreground: #141413;
+  --popover: #faf9f5;
+  --popover-foreground: #141413;
+  --primary: #c96442;
+  --primary-foreground: #faf9f5;
+  --secondary: #e8e6dc;
+  --secondary-foreground: #4d4c48;
+  --muted: #f0eee6;
+  --muted-foreground: #87867f;
+  --accent: #f0eee6;
+  --accent-foreground: #141413;
+  --destructive: #b53333;
+  --border: #f0eee6;
+  --input: #e8e6dc;
+  --ring: #c96442;
+  --chart-1: #c96442;
+  --chart-2: #d97757;
+  --chart-3: #87867f;
+  --chart-4: #27a644;
+  --chart-5: #3898ec;
+  --radius: 0.5rem;
+  --sidebar: #faf9f5;
+  --sidebar-foreground: #141413;
+  --sidebar-primary: #c96442;
+  --sidebar-primary-foreground: #faf9f5;
+  --sidebar-accent: #f0eee6;
+  --sidebar-accent-foreground: #4d4c48;
+  --sidebar-border: #f0eee6;
+  --sidebar-ring: #c96442;
+  --font-heading-family: var(--font-inter);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv01", "ss03";
+  }
+  html {
+    @apply font-sans antialiased;
+  }
+}
+
+/* Claude-style scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1cfc5;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #b0aea5;
+}

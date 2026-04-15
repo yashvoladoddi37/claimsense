@@ -1,0 +1,895 @@
+{
+  "test_cases": [
+    {
+      "case_id": "TC001",
+      "case_name": "Simple Consultation - Approved",
+      "description": "Regular doctor consultation for fever, all documents valid",
+      "input_data": {
+        "member_id": "EMP001",
+        "member_name": "Rajesh Kumar",
+        "treatment_date": "2024-11-01",
+        "claim_amount": 1500,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Sharma",
+            "doctor_reg": "KA/45678/2015",
+            "diagnosis": "Viral fever",
+            "medicines_prescribed": ["Paracetamol 650mg", "Vitamin C"]
+          },
+          "bill": {
+            "consultation_fee": 1000,
+            "diagnostic_tests": 500,
+            "test_names": ["CBC", "Dengue test"]
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "APPROVED",
+        "approved_amount": 1350,
+        "deductions": {
+          "copay": 150
+        },
+        "confidence_score": 0.95
+      }
+    },
+    {
+      "case_id": "TC002",
+      "case_name": "Dental Treatment - Partial Approval",
+      "description": "Root canal treatment with cosmetic whitening",
+      "input_data": {
+        "member_id": "EMP002",
+        "member_name": "Priya Singh",
+        "treatment_date": "2024-10-15",
+        "claim_amount": 12000,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Patel",
+            "doctor_reg": "MH/23456/2018",
+            "diagnosis": "Tooth decay requiring root canal",
+            "procedures": ["Root canal treatment", "Teeth whitening"]
+          },
+          "bill": {
+            "root_canal": 8000,
+            "teeth_whitening": 4000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "PARTIAL",
+        "approved_amount": 8000,
+        "rejected_items": ["Teeth whitening - cosmetic procedure"],
+        "confidence_score": 0.92
+      }
+    },
+    {
+      "case_id": "TC003",
+      "case_name": "Limit Exceeded - Rejected",
+      "description": "Claim exceeds per-claim limit",
+      "input_data": {
+        "member_id": "EMP003",
+        "member_name": "Amit Verma",
+        "treatment_date": "2024-10-20",
+        "claim_amount": 7500,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Gupta",
+            "doctor_reg": "DL/34567/2016",
+            "diagnosis": "Gastroenteritis",
+            "medicines_prescribed": ["Antibiotics", "Probiotics"]
+          },
+          "bill": {
+            "consultation_fee": 2000,
+            "medicines": 5500
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "REJECTED",
+        "rejection_reasons": ["PER_CLAIM_EXCEEDED"],
+        "notes": "Claim amount exceeds per-claim limit of ₹5000",
+        "confidence_score": 0.98
+      }
+    },
+    {
+      "case_id": "TC004",
+      "case_name": "Missing Documents - Rejected",
+      "description": "Prescription missing from claim submission",
+      "input_data": {
+        "member_id": "EMP004",
+        "member_name": "Sneha Reddy",
+        "treatment_date": "2024-10-25",
+        "claim_amount": 2000,
+        "documents": {
+          "bill": {
+            "consultation_fee": 1500,
+            "medicines": 500
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "REJECTED",
+        "rejection_reasons": ["MISSING_DOCUMENTS"],
+        "notes": "Prescription from registered doctor is required",
+        "confidence_score": 1.0
+      }
+    },
+    {
+      "case_id": "TC005",
+      "case_name": "Pre-existing Condition - Waiting Period",
+      "description": "Diabetes treatment within waiting period",
+      "input_data": {
+        "member_id": "EMP005",
+        "member_name": "Vikram Joshi",
+        "member_join_date": "2024-09-01",
+        "treatment_date": "2024-10-15",
+        "claim_amount": 3000,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Mehta",
+            "doctor_reg": "GJ/56789/2014",
+            "diagnosis": "Type 2 Diabetes",
+            "medicines_prescribed": ["Metformin", "Glimepiride"]
+          },
+          "bill": {
+            "consultation_fee": 1000,
+            "medicines": 2000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "REJECTED",
+        "rejection_reasons": ["WAITING_PERIOD"],
+        "notes": "Diabetes has 90-day waiting period. Eligible from 2024-11-30",
+        "confidence_score": 0.96
+      }
+    },
+    {
+      "case_id": "TC006",
+      "case_name": "Alternative Medicine - Approved",
+      "description": "Ayurvedic treatment within limits",
+      "input_data": {
+        "member_id": "EMP006",
+        "member_name": "Kavita Nair",
+        "treatment_date": "2024-10-28",
+        "claim_amount": 4000,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Vaidya Krishnan",
+            "doctor_reg": "AYUR/KL/2345/2019",
+            "diagnosis": "Chronic joint pain",
+            "treatment": "Panchakarma therapy"
+          },
+          "bill": {
+            "consultation_fee": 1000,
+            "therapy_charges": 3000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "APPROVED",
+        "approved_amount": 4000,
+        "notes": "Alternative medicine covered under policy",
+        "confidence_score": 0.89
+      }
+    },
+    {
+      "case_id": "TC007",
+      "case_name": "Diagnostic Tests - Pre-auth Required",
+      "description": "MRI scan without pre-authorization",
+      "input_data": {
+        "member_id": "EMP007",
+        "member_name": "Suresh Patil",
+        "treatment_date": "2024-11-02",
+        "claim_amount": 15000,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Rao",
+            "doctor_reg": "AP/67890/2017",
+            "diagnosis": "Suspected lumbar disc herniation",
+            "tests_prescribed": ["MRI Lumbar Spine"]
+          },
+          "bill": {
+            "mri_scan": 15000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "REJECTED",
+        "rejection_reasons": ["PRE_AUTH_MISSING"],
+        "notes": "MRI requires pre-authorization for claims above ₹10000",
+        "confidence_score": 0.94
+      }
+    },
+    {
+      "case_id": "TC008",
+      "case_name": "Fraud Detection - Manual Review",
+      "description": "Multiple high-value claims same day",
+      "input_data": {
+        "member_id": "EMP008",
+        "member_name": "Ravi Menon",
+        "treatment_date": "2024-10-30",
+        "claim_amount": 4800,
+        "previous_claims_same_day": 3,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Khan",
+            "doctor_reg": "UP/45678/2016",
+            "diagnosis": "Migraine",
+            "medicines_prescribed": ["Sumatriptan", "Propranolol"]
+          },
+          "bill": {
+            "consultation_fee": 2000,
+            "medicines": 2800
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "MANUAL_REVIEW",
+        "flags": ["Multiple claims same day", "Unusual pattern detected"],
+        "confidence_score": 0.65
+      }
+    },
+    {
+      "case_id": "TC009",
+      "case_name": "Excluded Treatment - Rejected",
+      "description": "Weight loss treatment not covered",
+      "input_data": {
+        "member_id": "EMP009",
+        "member_name": "Anita Desai",
+        "treatment_date": "2024-10-18",
+        "claim_amount": 8000,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Banerjee",
+            "doctor_reg": "WB/34567/2015",
+            "diagnosis": "Obesity - BMI 35",
+            "treatment": "Bariatric consultation and diet plan"
+          },
+          "bill": {
+            "consultation_fee": 3000,
+            "diet_plan": 5000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "REJECTED",
+        "rejection_reasons": ["SERVICE_NOT_COVERED"],
+        "notes": "Weight loss treatments are excluded from coverage",
+        "confidence_score": 0.97
+      }
+    },
+    {
+      "case_id": "TC010",
+      "case_name": "Network Hospital - Cashless Approved",
+      "description": "Treatment at network hospital with instant approval",
+      "input_data": {
+        "member_id": "EMP010",
+        "member_name": "Deepak Shah",
+        "treatment_date": "2024-11-03",
+        "claim_amount": 4500,
+        "hospital": "Apollo Hospitals",
+        "cashless_request": true,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Iyer",
+            "doctor_reg": "TN/56789/2013",
+            "diagnosis": "Acute bronchitis",
+            "medicines_prescribed": ["Antibiotics", "Bronchodilators"]
+          },
+          "bill": {
+            "consultation_fee": 1500,
+            "medicines": 3000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "APPROVED",
+        "approved_amount": 3600,
+        "cashless_approved": true,
+        "network_discount": 900,
+        "confidence_score": 0.93
+      }
+    }
+    ,
+    {
+      "case_id": "TC011",
+      "case_name": "Pharmacy Only - Approved with Copay",
+      "description": "Simple pharmacy bill for prescribed medicines, no consultation. General claim gets 10% copay.",
+      "input_data": {
+        "member_id": "EMP011",
+        "member_name": "Meera Iyer",
+        "treatment_date": "2024-11-05",
+        "claim_amount": 2200,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Sundar",
+            "doctor_reg": "TN/34567/2017",
+            "diagnosis": "Upper respiratory tract infection",
+            "medicines_prescribed": ["Azithromycin 500mg", "Cetirizine 10mg", "Cough syrup"]
+          },
+          "bill": {
+            "medicines": 2200
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "APPROVED",
+        "approved_amount": 1980,
+        "deductions": {
+          "copay": 220
+        },
+        "confidence_score": 0.95
+      }
+    },
+    {
+      "case_id": "TC012",
+      "case_name": "Invalid Doctor Registration - Rejected",
+      "description": "Doctor registration number in invalid format",
+      "input_data": {
+        "member_id": "EMP012",
+        "member_name": "Farhan Sheikh",
+        "treatment_date": "2024-10-22",
+        "claim_amount": 1800,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Ansari",
+            "doctor_reg": "INVALID123",
+            "diagnosis": "Allergic rhinitis",
+            "medicines_prescribed": ["Montelukast", "Fexofenadine"]
+          },
+          "bill": {
+            "consultation_fee": 800,
+            "medicines": 1000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "REJECTED",
+        "rejection_reasons": ["DOCTOR_REG_INVALID"],
+        "notes": "Doctor registration number format is invalid",
+        "confidence_score": 0.98
+      }
+    },
+    {
+      "case_id": "TC013",
+      "case_name": "Missing Diagnosis on Prescription - Rejected",
+      "description": "Prescription submitted without any diagnosis mentioned",
+      "input_data": {
+        "member_id": "EMP013",
+        "member_name": "Lakshmi Venkat",
+        "treatment_date": "2024-10-28",
+        "claim_amount": 1500,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Rajan",
+            "doctor_reg": "KA/78901/2019",
+            "medicines_prescribed": ["Amoxicillin", "Pantoprazole"]
+          },
+          "bill": {
+            "consultation_fee": 500,
+            "medicines": 1000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "REJECTED",
+        "rejection_reasons": ["INVALID_PRESCRIPTION"],
+        "notes": "Prescription does not contain a diagnosis",
+        "confidence_score": 0.98
+      }
+    },
+    {
+      "case_id": "TC014",
+      "case_name": "Infertility Treatment - Rejected (Exclusion)",
+      "description": "IVF consultation claim — infertility treatments are excluded",
+      "input_data": {
+        "member_id": "EMP014",
+        "member_name": "Arjun Malhotra",
+        "treatment_date": "2024-11-01",
+        "claim_amount": 4500,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Kaur",
+            "doctor_reg": "DL/56789/2016",
+            "diagnosis": "Male infertility - low sperm count",
+            "tests_prescribed": ["Semen analysis", "Hormone panel"]
+          },
+          "bill": {
+            "consultation_fee": 2000,
+            "diagnostic_tests": 2500
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "REJECTED",
+        "rejection_reasons": ["SERVICE_NOT_COVERED"],
+        "notes": "Infertility treatments are excluded from coverage",
+        "confidence_score": 0.97
+      }
+    },
+    {
+      "case_id": "TC015",
+      "case_name": "Vision Claim - Approved (Sub-limit)",
+      "description": "Eye checkup and prescription glasses within vision sub-limit of ₹5000",
+      "input_data": {
+        "member_id": "EMP015",
+        "member_name": "Nandini Bhat",
+        "treatment_date": "2024-10-20",
+        "claim_amount": 4500,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Shetty",
+            "doctor_reg": "KA/89012/2020",
+            "diagnosis": "Myopia - refractive error",
+            "tests_prescribed": ["Visual acuity test", "Refraction test"]
+          },
+          "bill": {
+            "consultation_fee": 1000,
+            "diagnostic_tests": 1500,
+            "glasses": 2000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "APPROVED",
+        "approved_amount": 4500,
+        "notes": "Vision claim within sub-limit of ₹5000, no copay for specialty category",
+        "confidence_score": 0.93
+      }
+    },
+    {
+      "case_id": "TC016",
+      "case_name": "Experimental Treatment - Rejected (Exclusion)",
+      "description": "Claim for experimental clinical trial treatment",
+      "input_data": {
+        "member_id": "EMP016",
+        "member_name": "Sanjay Kapoor",
+        "treatment_date": "2024-11-03",
+        "claim_amount": 3500,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Mathur",
+            "doctor_reg": "RJ/12345/2014",
+            "diagnosis": "Psoriasis",
+            "treatment": "Experimental biologic therapy clinical trial"
+          },
+          "bill": {
+            "consultation_fee": 1500,
+            "therapy_charges": 2000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "REJECTED",
+        "rejection_reasons": ["SERVICE_NOT_COVERED"],
+        "notes": "Experimental treatments and clinical trials are excluded",
+        "confidence_score": 0.97
+      }
+    },
+    {
+      "case_id": "TC017",
+      "case_name": "Hypertension - Waiting Period Reject",
+      "description": "Hypertension treatment within 90-day specific ailment waiting period",
+      "input_data": {
+        "member_id": "EMP017",
+        "member_name": "Pooja Agarwal",
+        "member_join_date": "2024-10-01",
+        "treatment_date": "2024-11-15",
+        "claim_amount": 2500,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Chandra",
+            "doctor_reg": "UP/67890/2018",
+            "diagnosis": "Essential hypertension",
+            "medicines_prescribed": ["Amlodipine 5mg", "Telmisartan 40mg"]
+          },
+          "bill": {
+            "consultation_fee": 800,
+            "medicines": 1700
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "REJECTED",
+        "rejection_reasons": ["WAITING_PERIOD"],
+        "notes": "Hypertension has 90-day waiting period. Eligible from 2024-12-30",
+        "confidence_score": 0.96
+      }
+    },
+    {
+      "case_id": "TC018",
+      "case_name": "Network Hospital Fortis - Approved with Discount",
+      "description": "Claim at Fortis (network hospital) gets 20% discount, no copay",
+      "input_data": {
+        "member_id": "EMP018",
+        "member_name": "Karthik Raman",
+        "treatment_date": "2024-10-25",
+        "claim_amount": 3000,
+        "hospital": "Fortis Healthcare",
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Bhatt",
+            "doctor_reg": "GJ/23456/2015",
+            "diagnosis": "Acute sinusitis",
+            "medicines_prescribed": ["Amoxicillin", "Nasal spray", "Steam inhalation"]
+          },
+          "bill": {
+            "consultation_fee": 1200,
+            "medicines": 1800
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "APPROVED",
+        "approved_amount": 2400,
+        "cashless_approved": false,
+        "network_discount": 600,
+        "confidence_score": 0.93
+      }
+    },
+    {
+      "case_id": "TC019",
+      "case_name": "Missing Bill - Rejected",
+      "description": "Prescription provided but no bill/receipt attached",
+      "input_data": {
+        "member_id": "EMP019",
+        "member_name": "Divya Chauhan",
+        "treatment_date": "2024-11-02",
+        "claim_amount": 1200,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Jain",
+            "doctor_reg": "MP/45678/2017",
+            "diagnosis": "Conjunctivitis",
+            "medicines_prescribed": ["Eye drops", "Antibiotic ointment"]
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "REJECTED",
+        "rejection_reasons": ["MISSING_DOCUMENTS"],
+        "notes": "Bill/receipt is required for claim processing",
+        "confidence_score": 1.0
+      }
+    },
+    {
+      "case_id": "TC020",
+      "case_name": "High-Value Claim - Manual Review",
+      "description": "Dental claim above ₹25,000 triggers high-value fraud flag",
+      "input_data": {
+        "member_id": "EMP020",
+        "member_name": "Rohit Saxena",
+        "treatment_date": "2024-10-30",
+        "claim_amount": 28000,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Deshpande",
+            "doctor_reg": "MH/56789/2016",
+            "diagnosis": "Severe tooth decay multiple teeth",
+            "procedures": ["Root canal", "Filling", "Extraction"]
+          },
+          "bill": {
+            "root_canal": 12000,
+            "filling": 8000,
+            "extraction": 8000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "MANUAL_REVIEW",
+        "flags": ["High-value claim"],
+        "notes": "Claim amount exceeds ₹25,000 fraud detection threshold",
+        "confidence_score": 0.65
+      }
+    },
+    {
+      "case_id": "TC021",
+      "case_name": "Substance Abuse Treatment - Rejected (Exclusion)",
+      "description": "Alcohol addiction rehabilitation claim — excluded condition",
+      "input_data": {
+        "member_id": "EMP021",
+        "member_name": "Asha Pillai",
+        "treatment_date": "2024-10-18",
+        "claim_amount": 4000,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Nambiar",
+            "doctor_reg": "KL/34567/2015",
+            "diagnosis": "Alcoholism - chronic alcohol dependence",
+            "treatment": "De-addiction counseling and medication"
+          },
+          "bill": {
+            "consultation_fee": 2000,
+            "therapy_charges": 2000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "REJECTED",
+        "rejection_reasons": ["SERVICE_NOT_COVERED"],
+        "notes": "Alcoholism/drug abuse treatment is excluded from coverage",
+        "confidence_score": 0.97
+      }
+    },
+    {
+      "case_id": "TC022",
+      "case_name": "Dental Filling - Approved (Dental Sub-limit)",
+      "description": "Simple dental filling within ₹10,000 dental sub-limit, no copay for dental specialty",
+      "input_data": {
+        "member_id": "EMP022",
+        "member_name": "Manoj Tiwari",
+        "treatment_date": "2024-11-05",
+        "claim_amount": 3500,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Verma",
+            "doctor_reg": "UP/78901/2019",
+            "diagnosis": "Dental cavity in molar",
+            "procedures": ["Filling"]
+          },
+          "bill": {
+            "consultation_fee": 500,
+            "filling": 3000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "APPROVED",
+        "approved_amount": 3500,
+        "notes": "Dental filling covered under dental sub-limit of ₹10,000",
+        "confidence_score": 0.93
+      }
+    },
+    {
+      "case_id": "TC023",
+      "case_name": "CT Scan - Pre-auth Rejected",
+      "description": "CT scan claimed without pre-authorization",
+      "input_data": {
+        "member_id": "EMP023",
+        "member_name": "Rina Das",
+        "treatment_date": "2024-10-28",
+        "claim_amount": 8000,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Bose",
+            "doctor_reg": "WB/89012/2017",
+            "diagnosis": "Persistent abdominal pain",
+            "tests_prescribed": ["CT Scan Abdomen"]
+          },
+          "bill": {
+            "ct_scan": 8000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "REJECTED",
+        "rejection_reasons": ["PRE_AUTH_MISSING"],
+        "notes": "CT Scan requires pre-authorization",
+        "confidence_score": 0.94
+      }
+    },
+    {
+      "case_id": "TC024",
+      "case_name": "Initial 30-Day Waiting Period - Rejected",
+      "description": "New employee claims within initial 30-day waiting period",
+      "input_data": {
+        "member_id": "EMP024",
+        "member_name": "Gaurav Pandey",
+        "member_join_date": "2024-11-15",
+        "treatment_date": "2024-11-28",
+        "claim_amount": 1500,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Tripathi",
+            "doctor_reg": "UP/90123/2020",
+            "diagnosis": "Common cold",
+            "medicines_prescribed": ["Paracetamol", "Antihistamine"]
+          },
+          "bill": {
+            "consultation_fee": 500,
+            "medicines": 1000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "REJECTED",
+        "rejection_reasons": ["WAITING_PERIOD"],
+        "notes": "Initial 30-day waiting period not met. Only 13 days since joining.",
+        "confidence_score": 0.96
+      }
+    },
+    {
+      "case_id": "TC025",
+      "case_name": "Homeopathy Treatment - Approved (Alt Medicine)",
+      "description": "Homeopathic treatment within ₹8,000 alternative medicine sub-limit",
+      "input_data": {
+        "member_id": "EMP025",
+        "member_name": "Sunita Hegde",
+        "treatment_date": "2024-10-22",
+        "claim_amount": 3000,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Kulkarni",
+            "doctor_reg": "KA/11111/2016",
+            "diagnosis": "Chronic eczema",
+            "treatment": "Homeopathy constitutional treatment",
+            "medicines_prescribed": ["Sulphur 200C", "Graphites 30C"]
+          },
+          "bill": {
+            "consultation_fee": 1000,
+            "medicines": 2000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "APPROVED",
+        "approved_amount": 3000,
+        "notes": "Homeopathy covered under alternative medicine sub-limit of ₹8,000",
+        "confidence_score": 0.89
+      }
+    },
+    {
+      "case_id": "TC026",
+      "case_name": "Below Minimum Claim Amount - Rejected",
+      "description": "Claim amount of ₹400 is below the ₹500 minimum",
+      "input_data": {
+        "member_id": "EMP026",
+        "member_name": "Prakash Jha",
+        "treatment_date": "2024-11-01",
+        "claim_amount": 400,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Sinha",
+            "doctor_reg": "BR/22222/2018",
+            "diagnosis": "Mild headache",
+            "medicines_prescribed": ["Ibuprofen"]
+          },
+          "bill": {
+            "medicines": 400
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "REJECTED",
+        "rejection_reasons": ["BELOW_MIN_AMOUNT"],
+        "notes": "Claim amount ₹400 is below minimum of ₹500",
+        "confidence_score": 0.98
+      }
+    },
+    {
+      "case_id": "TC027",
+      "case_name": "Exact Limit Boundary - Manual Review (Fraud)",
+      "description": "Claim amount exactly ₹5000 triggers fraud boundary detection",
+      "input_data": {
+        "member_id": "EMP027",
+        "member_name": "Tanvi Kulkarni",
+        "treatment_date": "2024-10-25",
+        "claim_amount": 5000,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Naik",
+            "doctor_reg": "KA/33333/2017",
+            "diagnosis": "Urinary tract infection",
+            "medicines_prescribed": ["Ciprofloxacin", "Cranberry supplements"]
+          },
+          "bill": {
+            "consultation_fee": 1500,
+            "medicines": 2000,
+            "diagnostic_tests": 1500
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "MANUAL_REVIEW",
+        "flags": ["Amount at exact limit boundary"],
+        "notes": "Claim amount exactly at per-claim limit triggers fraud review",
+        "confidence_score": 0.65
+      }
+    },
+    {
+      "case_id": "TC028",
+      "case_name": "Dental with Botox - Partial Approval",
+      "description": "Legitimate extraction plus cosmetic botox in same bill",
+      "input_data": {
+        "member_id": "EMP028",
+        "member_name": "Vivek Mishra",
+        "treatment_date": "2024-10-30",
+        "claim_amount": 9000,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Arora",
+            "doctor_reg": "DL/44444/2019",
+            "diagnosis": "Impacted wisdom tooth",
+            "procedures": ["Extraction"]
+          },
+          "bill": {
+            "extraction": 5000,
+            "botox_treatment": 4000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "PARTIAL",
+        "approved_amount": 5000,
+        "rejected_items": ["Botox Treatment - cosmetic procedure"],
+        "confidence_score": 0.92
+      }
+    },
+    {
+      "case_id": "TC029",
+      "case_name": "Network Cashless - Approved with Discount",
+      "description": "Cashless request at Max Healthcare (network) for ENT consultation",
+      "input_data": {
+        "member_id": "EMP029",
+        "member_name": "Neha Srinivasan",
+        "treatment_date": "2024-11-04",
+        "claim_amount": 3500,
+        "hospital": "Max Healthcare",
+        "cashless_request": true,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Thakur",
+            "doctor_reg": "DL/55555/2016",
+            "diagnosis": "Chronic tonsillitis",
+            "medicines_prescribed": ["Amoxicillin-Clavulanate", "Betadine gargle"]
+          },
+          "bill": {
+            "consultation_fee": 1500,
+            "medicines": 2000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "APPROVED",
+        "approved_amount": 2800,
+        "cashless_approved": true,
+        "network_discount": 700,
+        "confidence_score": 0.93
+      }
+    },
+    {
+      "case_id": "TC030",
+      "case_name": "Member Not Found - Rejected",
+      "description": "Claim submitted with a member ID that does not exist in the system",
+      "input_data": {
+        "member_id": "EMP999",
+        "member_name": "Unknown Person",
+        "treatment_date": "2024-11-01",
+        "claim_amount": 2000,
+        "documents": {
+          "prescription": {
+            "doctor_name": "Dr. Sharma",
+            "doctor_reg": "KA/45678/2015",
+            "diagnosis": "Fever",
+            "medicines_prescribed": ["Paracetamol"]
+          },
+          "bill": {
+            "consultation_fee": 1000,
+            "medicines": 1000
+          }
+        }
+      },
+      "expected_output": {
+        "decision": "REJECTED",
+        "rejection_reasons": ["MEMBER_NOT_COVERED"],
+        "notes": "Member EMP999 not found in policy records",
+        "confidence_score": 1.0
+      }
+    }
+  ],
+  "validation_notes": {
+    "scoring_guidelines": [
+      "Each test case should complete within 5 seconds",
+      "Confidence scores should be provided for all decisions",
+      "System should handle edge cases gracefully",
+      "Clear reasoning should be provided for rejections"
+    ],
+    "bonus_test_scenarios": [
+      "Handle illegible/blurry document images",
+      "Process handwritten prescriptions",
+      "Detect forged/modified documents",
+      "Handle claims in regional languages",
+      "Process multiple receipts in single claim"
+    ]
+  }
+}
