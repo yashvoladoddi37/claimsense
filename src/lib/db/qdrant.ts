@@ -20,6 +20,7 @@ export const qdrantClient = new QdrantClient({
   port: qdrantPort,
   https: qdrantHttps,
   apiKey: process.env.QDRANT_API_KEY,
+  checkCompatibility: false,
 });
 
 export const COLLECTION_NAME = 'policy_knowledge';

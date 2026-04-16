@@ -211,7 +211,9 @@ async function embedText(text: string): Promise<number[]> {
 
 // ---- Qdrant: ensure collection + upsert ----
 async function ensureQdrantCollection(): Promise<void> {
-  const exists = await qdrantClient.collectionExists(COLLECTION_NAME);
+  const result = await qdrantClient.collectionExists(COLLECTION_NAME);
+  // result is { exists: boolean } object, not a plain boolean
+  const exists = typeof result === 'boolean' ? result : result?.exists;
   if (!exists) {
     await qdrantClient.createCollection(COLLECTION_NAME, {
       vectors: { size: 384, distance: 'Cosine' },
