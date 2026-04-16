@@ -141,22 +141,22 @@ export function VoiceClaimPanel() {
           ) : (
             <div className="px-5 py-5">
               <p className="text-sm font-semibold mb-3" style={{ color: '#141413' }}>
-                {isSessionActive ? "Listening... speak now" : "Voice-First Claims"}
+                {isSessionActive ? "Listening... speak now" : "Voice Policy Assistant"}
               </p>
 
               {isSessionActive ? (
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 rounded-full animate-pulse" style={{ background: '#c96442' }} />
                   <p className="text-xs" style={{ color: '#5e5d59' }}>
-                    Try saying "I want to file a claim" or "What is my per-claim limit?"
+                    Try saying "What is my per-claim limit?" or "Why was my claim rejected?"
                   </p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   {[
-                    { label: 'File a claim', desc: 'Describe your visit — the agent handles the rest', icon: '📋' },
+                    { label: 'Understand your policy', desc: 'Coverage, limits, exclusions, waiting periods', icon: '📚' },
+                    { label: 'Explain claim decisions', desc: 'Why a claim was approved, rejected, or partial', icon: '💡' },
                     { label: 'Check claim status', desc: 'Ask about any existing claim by ID', icon: '🔍' },
-                    { label: 'Policy questions', desc: 'Coverage limits, exclusions, waiting periods', icon: '📚' },
                   ].map((item) => (
                     <div key={item.label} className="flex items-start gap-2.5">
                       <span className="text-sm mt-0.5">{item.icon}</span>

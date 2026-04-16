@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useVapi } from "@/hooks/use-vapi";
 
 interface KnowledgeChunk {
   id: string;
@@ -118,6 +119,15 @@ export default function PolicyExplorer() {
   const [asking, setAsking] = useState(false);
   const [qaHistory, setQaHistory] = useState<QAResult[]>([]);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Voice
+  const { isSessionActive, isConnecting, volumeLevel, conversation, toggleCall } = useVapi();
+  const voiceScrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (voiceScrollRef.current) {
+      voiceScrollRef.current.scrollTop = voiceScrollRef.current.scrollHeight;
+    }
+  }, [conversation]);
 
   // Knowledge Base filter + expanded cards
   const [kbFilter, setKbFilter] = useState<string>("all");
@@ -273,6 +283,7 @@ export default function PolicyExplorer() {
           <CardContent className="pt-6 pb-6 px-4 sm:pt-8 sm:pb-8 sm:px-8">
             <div className="text-center space-y-4">
               <h2 className="text-2xl font-semibold tracking-tight text-[#141413]">Ask About Your Policy</h2>
+              <p className="text-sm text-[#5e5d59]">Type a question or use voice — supports Hindi & English</p>
 
               {/* Sample questions — centered */}
               <div className="flex flex-wrap justify-center gap-2 pt-2">
@@ -284,11 +295,33 @@ export default function PolicyExplorer() {
                 ))}
               </div>
 
-              {/* Input — centered */}
+              {/* Input row — text + mic + ask */}
               <form onSubmit={(e) => { e.preventDefault(); asking ? handleStop() : handleAsk(); }} className="flex gap-2 max-w-xl mx-auto pt-2 items-stretch">
                 <input className="flex-1 border border-[#e8e6dc] rounded-lg px-4 py-2.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-[#c96442]/30 focus:border-[#c96442]/30 bg-[#faf9f5] text-[#141413] placeholder:text-[#87867f]" type="text"
                   value={question} onChange={e => setQuestion(e.target.value)}
                   placeholder="Ask anything about your insurance policy..." />
+                <button
+                  type="button"
+                  onClick={toggleCall}
+                  disabled={isConnecting}
+                  className="h-[42px] w-[42px] shrink-0 rounded-lg flex items-center justify-center transition-all disabled:opacity-50"
+                  style={isSessionActive
+                    ? { background: '#b53333', color: '#fff', boxShadow: '0 0 12px rgba(181,51,51,0.3)' }
+                    : { background: '#f0eee6', color: '#5e5d59', border: '1px solid #e8e6dc' }
+                  }
+                  title={isSessionActive ? "End voice call" : "Ask by voice"}
+                >
+                  {isConnecting ? (
+                    <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
+                  ) : isSessionActive ? (
+                    <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="3" width="10" height="10" rx="1" /></svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    </svg>
+                  )}
+                </button>
                 {asking ? (
                   <Button type="button" onClick={handleStop} className="px-6 bg-[#b53333] hover:bg-[#b53333]/80 text-white">
                     Stop
@@ -301,11 +334,76 @@ export default function PolicyExplorer() {
               </form>
             </div>
 
-            {/* Answer */}
+            {/* Voice conversation transcript */}
+            {isSessionActive && (
+              <div className="mt-5 rounded-xl border-2 border-[#c96442]/40 overflow-hidden" style={{ background: '#faf9f5' }}>
+                <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-[#e8e6dc]" style={{ background: 'rgba(201,100,66,0.06)' }}>
+                  <span className="w-2 h-2 rounded-full bg-[#27a644] animate-pulse" />
+                  <span className="text-xs font-semibold text-[#c96442]">Voice Active</span>
+                  <span className="text-[10px] text-[#87867f] ml-auto">Hindi & English</span>
+                  {/* Volume bars */}
+                  <div className="flex items-end gap-[2px] h-3.5" aria-hidden="true">
+                    {[0, 1, 2, 3, 4].map(i => (
+                      <div key={i} className="w-[3px] rounded-full transition-all duration-150"
+                        style={{ height: `${40 + i * 15}%`, background: isSessionActive && volumeLevel > (i + 1) / 5 * 0.5 ? '#c96442' : '#e8e6dc' }} />
+                    ))}
+                  </div>
+                </div>
+                <div ref={voiceScrollRef} className="px-4 py-3 space-y-2 max-h-[240px] overflow-y-auto min-h-[80px]">
+                  {conversation.length === 0 ? (
+                    <div className="flex items-center justify-center gap-2 py-4">
+                      <div className="w-5 h-5 rounded-full animate-pulse" style={{ background: 'rgba(201,100,66,0.3)' }} />
+                      <p className="text-sm text-[#5e5d59]">Listening... ask about your policy</p>
+                    </div>
+                  ) : (
+                    conversation.map((msg, i) => (
+                      <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                        <div className="max-w-[85%] px-3 py-2 rounded-xl text-sm leading-relaxed"
+                          style={msg.role === "user"
+                            ? { background: '#c96442', color: '#fff', borderBottomRightRadius: '4px' }
+                            : { background: '#f0eee6', color: '#141413', borderBottomLeftRadius: '4px' }
+                          }>
+                          {msg.text}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="px-4 py-2 border-t flex items-center justify-between" style={{ borderColor: '#e8e6dc', background: '#f0eee6' }}>
+                  <p className="text-[10px] text-[#87867f]">Powered by Vapi + Qdrant + Groq</p>
+                  <button onClick={toggleCall} className="text-[10px] font-semibold text-[#b53333] hover:underline">End Call</button>
+                </div>
+              </div>
+            )}
+
+            {/* Voice ended — show conversation summary */}
+            {!isSessionActive && conversation.length > 0 && (
+              <div className="mt-5 rounded-xl border border-[#e8e6dc] overflow-hidden" style={{ background: '#faf9f5' }}>
+                <div className="flex items-center gap-2 px-4 py-2 border-b border-[#e8e6dc]" style={{ background: '#f0eee6' }}>
+                  <span className="text-xs font-semibold text-[#5e5d59]">Voice Conversation</span>
+                  <span className="text-[10px] text-[#87867f] ml-auto">{conversation.length} messages</span>
+                </div>
+                <div className="px-4 py-3 space-y-2 max-h-[200px] overflow-y-auto">
+                  {conversation.map((msg, i) => (
+                    <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                      <div className="max-w-[85%] px-3 py-2 rounded-xl text-sm leading-relaxed"
+                        style={msg.role === "user"
+                          ? { background: '#c96442', color: '#fff', borderBottomRightRadius: '4px' }
+                          : { background: '#f0eee6', color: '#141413', borderBottomLeftRadius: '4px', border: '1px solid #e8e6dc' }
+                        }>
+                        {msg.text}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Text Q&A answer */}
             {qaResult && (
               <div className="space-y-3 mt-6">
                 <div className="p-5 rounded-xl bg-[#faf9f5] border border-[#e8e6dc] shadow-sm">
-                  <div className="text-xs text-[#5e5d59] mb-2 font-medium text-center">💬 {qaResult.question}</div>
+                  <div className="text-xs text-[#5e5d59] mb-2 font-medium text-center">Q: {qaResult.question}</div>
                   <div className="text-sm leading-relaxed whitespace-pre-line text-[#141413]">{renderMarkdown(qaResult.answer)}</div>
                 </div>
                 {qaResult.sources?.length > 0 && (

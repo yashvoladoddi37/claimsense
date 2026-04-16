@@ -149,10 +149,10 @@ export function VoiceAssistant() {
               <div className="flex flex-col items-center justify-center h-full text-center py-8">
                 <div className="text-4xl mb-3">🏥</div>
                 <p className="text-sm font-medium" style={{ color: '#141413' }}>
-                  Insurance Claims Assistant
+                  Policy Assistant
                 </p>
                 <p className="text-xs mt-1.5 max-w-[240px]" style={{ color: '#87867f' }}>
-                  File claims, check status, or ask policy questions — all by voice. Supports Hindi and English.
+                  Ask policy questions, understand claim decisions, or check claim status — by voice. Hindi & English.
                 </p>
               </div>
             )}
@@ -210,7 +210,7 @@ export function VoiceAssistant() {
             </div>
             <p className="text-[10px] text-center mt-2" style={{ color: '#87867f' }}>
               {isSessionActive
-                ? "Say 'file a claim', 'check status', or ask about your policy"
+                ? "Ask about coverage, claim decisions, or policy limits"
                 : "Powered by Vapi · Qdrant · Groq"
               }
             </p>
