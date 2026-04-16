@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
+import { VoiceAssistant } from "@/components/VoiceAssistant";
 
 
 const inter = Inter({
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">
           {children}
         </main>
+        <VoiceAssistant />
         <footer className="border-t border-[#f0eee6] py-3 mt-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between text-[12px] text-[#87867f]">
             <span>Built by <span className="font-medium text-[#141413]">Yashpreet Voladoddi</span></span>

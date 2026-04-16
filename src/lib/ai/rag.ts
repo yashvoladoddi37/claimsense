@@ -1,16 +1,16 @@
 // ============================================================
-// RAG Knowledge Base
-// Auto-chunks policy_terms.json and adjudication_rules.md into
-// an in-memory vector store. Uses Gemini embeddings + cosine
-// similarity for retrieval. Medical knowledge added as supplementary.
+// RAG Knowledge Base (Qdrant-backed)
+// Auto-chunks policy_terms.json and adjudication_rules.md,
+// embeds with HuggingFace MiniLM-L6-v2, stores in Qdrant Cloud.
+// Falls back to in-memory if Qdrant is unavailable.
 // ============================================================
 
 import policyData from '../../../policy_terms.json';
 import fs from 'fs';
 import path from 'path';
+import { qdrantClient, COLLECTION_NAME } from '../db/qdrant';
 
 // ---- Local Embeddings via HuggingFace transformers.js ----
-// Uses all-MiniLM-L6-v2 (384-dim) — runs on CPU, no API key needed
 import type { FeatureExtractionPipeline } from '@huggingface/transformers';
 
 let embeddingPipeline: FeatureExtractionPipeline | null = null;
@@ -39,22 +39,24 @@ export interface RetrievalResult {
   similarity: number;
 }
 
-// In-memory vector store
-let knowledgeBase: KnowledgeChunk[] = [];
 let isInitialized = false;
 let isInitializing = false;
+let useQdrant = true; // falls back to in-memory if Qdrant unavailable
 
-/** Whether the embedding model has been loaded and chunks are embedded */
+// In-memory fallback store
+let fallbackChunks: KnowledgeChunk[] = [];
+
+/** Whether the embedding model has been loaded and chunks are stored */
 export function isEmbeddingReady(): boolean {
-  return isInitialized && knowledgeBase.some(c => c.embedding);
+  return isInitialized;
 }
 
-/** Whether the knowledge base is currently initializing (downloading model) */
+/** Whether the knowledge base is currently initializing */
 export function isEmbeddingInitializing(): boolean {
   return isInitializing && !isInitialized;
 }
 
-// ---- Cosine Similarity ----
+// ---- Cosine Similarity (fallback only) ----
 function cosineSimilarity(a: number[], b: number[]): number {
   let dot = 0, normA = 0, normB = 0;
   for (let i = 0; i < a.length; i++) {
@@ -72,56 +74,45 @@ function chunkPolicyTerms(): KnowledgeChunk[] {
   const p = policyData;
   let idx = 0;
 
-  // Coverage limits
   chunks.push({ id: `pt-${idx++}`, source: 'policy_terms', category: 'coverage_limits',
     text: `Policy: ${p.policy_name} (${p.policy_id}). Annual OPD limit: Rs ${p.coverage_details.annual_limit}. Per claim limit: Rs ${p.coverage_details.per_claim_limit}. Family floater limit: Rs ${p.coverage_details.family_floater_limit}. Effective from: ${p.effective_date}.` });
 
-  // Consultation
   const cf = p.coverage_details.consultation_fees;
   chunks.push({ id: `pt-${idx++}`, source: 'policy_terms', category: 'consultation',
     text: `Consultation fees: covered=${cf.covered}, sub-limit Rs ${cf.sub_limit}, copay ${cf.copay_percentage}%, network discount ${cf.network_discount}%.` });
 
-  // Diagnostics
   const dt = p.coverage_details.diagnostic_tests;
   chunks.push({ id: `pt-${idx++}`, source: 'policy_terms', category: 'diagnostics',
     text: `Diagnostic tests: covered=${dt.covered}, sub-limit Rs ${dt.sub_limit}, pre-authorization required=${dt.pre_authorization_required}. Covered tests: ${dt.covered_tests.join(', ')}.` });
 
-  // Pharmacy
   const ph = p.coverage_details.pharmacy;
   chunks.push({ id: `pt-${idx++}`, source: 'policy_terms', category: 'pharmacy',
     text: `Pharmacy: covered=${ph.covered}, sub-limit Rs ${ph.sub_limit}, generic drugs mandatory=${ph.generic_drugs_mandatory}, branded drugs copay ${ph.branded_drugs_copay}%.` });
 
-  // Dental
   const dn = p.coverage_details.dental;
   chunks.push({ id: `pt-${idx++}`, source: 'policy_terms', category: 'dental',
     text: `Dental: covered=${dn.covered}, sub-limit Rs ${dn.sub_limit}, routine checkup limit Rs ${dn.routine_checkup_limit}. Procedures covered: ${dn.procedures_covered.join(', ')}. Cosmetic dental: ${dn.cosmetic_procedures}.` });
 
-  // Vision
   const vs = p.coverage_details.vision;
   chunks.push({ id: `pt-${idx++}`, source: 'policy_terms', category: 'vision',
     text: `Vision: covered=${vs.covered}, sub-limit Rs ${vs.sub_limit}, eye tests covered=${vs.eye_test_covered}, glasses/contacts=${vs.glasses_contact_lenses}, LASIK=${vs.lasik_surgery}.` });
 
-  // Alt medicine
   const am = p.coverage_details.alternative_medicine;
   chunks.push({ id: `pt-${idx++}`, source: 'policy_terms', category: 'alternative_medicine',
     text: `Alternative medicine: covered=${am.covered}, sub-limit Rs ${am.sub_limit}, max ${am.therapy_sessions_limit} therapy sessions/year. Covered: ${am.covered_treatments.join(', ')}.` });
 
-  // Waiting periods
   const wp = p.waiting_periods;
   const ailments = Object.entries(wp.specific_ailments).map(([k, v]) => `${k}: ${v} days`).join(', ');
   chunks.push({ id: `pt-${idx++}`, source: 'policy_terms', category: 'waiting_periods',
     text: `Waiting periods: initial ${wp.initial_waiting} days, pre-existing diseases ${wp.pre_existing_diseases} days, maternity ${wp.maternity} days. Specific ailments: ${ailments}.` });
 
-  // Exclusions
   chunks.push({ id: `pt-${idx++}`, source: 'policy_terms', category: 'exclusions',
     text: `Exclusions: ${p.exclusions.join('; ')}.` });
 
-  // Claim requirements
   const cr = p.claim_requirements;
   chunks.push({ id: `pt-${idx++}`, source: 'policy_terms', category: 'claim_requirements',
     text: `Claim requirements: Submit within ${cr.submission_timeline_days} days. Minimum claim Rs ${cr.minimum_claim_amount}. Required documents: ${cr.documents_required.join('; ')}.` });
 
-  // Network hospitals
   chunks.push({ id: `pt-${idx++}`, source: 'policy_terms', category: 'network',
     text: `Network hospitals: ${p.network_hospitals.join(', ')}. Cashless: available=${p.cashless_facilities.available}, network only=${p.cashless_facilities.network_only}, instant approval limit Rs ${p.cashless_facilities.instant_approval_limit}.` });
 
@@ -132,7 +123,6 @@ function chunkPolicyTerms(): KnowledgeChunk[] {
 function chunkAdjudicationRules(): KnowledgeChunk[] {
   const chunks: KnowledgeChunk[] = [];
 
-  // Read the actual markdown file
   let rulesText = '';
   try {
     const rulesPath = path.join(process.cwd(), '..', 'adjudication_rules.md');
@@ -142,14 +132,12 @@ function chunkAdjudicationRules(): KnowledgeChunk[] {
       const altPath = path.join(process.cwd(), 'adjudication_rules.md');
       rulesText = fs.readFileSync(altPath, 'utf-8');
     } catch {
-      // Fallback if file not found — should not happen in production
       rulesText = '';
     }
   }
 
   if (!rulesText) return chunks;
 
-  // Split by ## headers into sections
   const sections = rulesText.split(/^## /m).filter(Boolean);
   let idx = 0;
 
@@ -160,7 +148,6 @@ function chunkAdjudicationRules(): KnowledgeChunk[] {
 
     if (!body) continue;
 
-    // Split large sections by ### sub-headers
     const subsections = body.split(/^### /m).filter(Boolean);
 
     if (subsections.length > 1) {
@@ -178,7 +165,6 @@ function chunkAdjudicationRules(): KnowledgeChunk[] {
         }
       }
     } else {
-      // Single section — chunk as-is
       const flatBody = body.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
       if (flatBody.length > 20) {
         chunks.push({
@@ -194,7 +180,7 @@ function chunkAdjudicationRules(): KnowledgeChunk[] {
   return chunks;
 }
 
-// ---- Medical Knowledge (supplementary, domain expertise) ----
+// ---- Medical Knowledge ----
 function buildMedicalKnowledge(): KnowledgeChunk[] {
   return [
     { id: 'mk-0', source: 'medical_knowledge', category: 'fever',
@@ -216,37 +202,98 @@ function buildMedicalKnowledge(): KnowledgeChunk[] {
   ];
 }
 
-// ---- Embed Chunks (local MiniLM-L6-v2) ----
+// ---- Embed Text ----
 async function embedText(text: string): Promise<number[]> {
   const extractor = await getEmbeddingPipeline();
   const result = await extractor(text, { pooling: 'mean', normalize: true });
-  // result is a Tensor — convert to flat number array
   return Array.from(result.data as Float32Array);
 }
 
+// ---- Qdrant: ensure collection + upsert ----
+async function ensureQdrantCollection(): Promise<void> {
+  const exists = await qdrantClient.collectionExists(COLLECTION_NAME);
+  if (!exists) {
+    await qdrantClient.createCollection(COLLECTION_NAME, {
+      vectors: { size: 384, distance: 'Cosine' },
+    });
+    console.log(`✅ Created Qdrant collection "${COLLECTION_NAME}"`);
+  }
+}
+
+async function upsertToQdrant(chunks: KnowledgeChunk[]): Promise<void> {
+  const BATCH_SIZE = 50;
+  for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+    const batch = chunks.slice(i, i + BATCH_SIZE);
+    await qdrantClient.upsert(COLLECTION_NAME, {
+      wait: true,
+      points: batch.map((chunk, idx) => ({
+        id: i + idx,
+        vector: chunk.embedding!,
+        payload: {
+          text: chunk.text,
+          source: chunk.source,
+          category: chunk.category,
+          chunk_id: chunk.id,
+        },
+      })),
+    });
+  }
+}
+
+async function qdrantHasPoints(): Promise<boolean> {
+  try {
+    const info = await qdrantClient.getCollection(COLLECTION_NAME);
+    return (info.points_count ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
+// ---- Initialize ----
 export async function initializeKnowledgeBase(): Promise<void> {
   if (isInitialized) return;
   isInitializing = true;
 
-  // Auto-chunk from actual source files + medical knowledge
-  knowledgeBase = [
+  const allChunks = [
     ...chunkPolicyTerms(),
     ...chunkAdjudicationRules(),
     ...buildMedicalKnowledge(),
   ];
 
-  console.log(`📚 Built ${knowledgeBase.length} knowledge chunks (policy: ${chunkPolicyTerms().length}, rules: ${chunkAdjudicationRules().length}, medical: ${buildMedicalKnowledge().length})`);
+  console.log(`📚 Built ${allChunks.length} knowledge chunks`);
 
+  // Try Qdrant first
   try {
-    // Batch embed all chunks using local model
-    for (const chunk of knowledgeBase) {
-      chunk.embedding = await embedText(chunk.text);
+    await ensureQdrantCollection();
+    const hasData = await qdrantHasPoints();
+
+    if (!hasData) {
+      console.log('⏳ Embedding and upserting chunks to Qdrant...');
+      for (const chunk of allChunks) {
+        chunk.embedding = await embedText(chunk.text);
+      }
+      await upsertToQdrant(allChunks);
+      console.log(`✅ Upserted ${allChunks.length} chunks to Qdrant Cloud`);
+    } else {
+      console.log(`✅ Qdrant collection already has data, skipping upsert`);
     }
+
+    useQdrant = true;
     isInitialized = true;
-    console.log(`✅ RAG knowledge base initialized with ${knowledgeBase.length} chunks`);
   } catch (error) {
-    console.warn('⚠️  Failed to initialize RAG embeddings, falling back to keyword search:', error);
-    isInitialized = true; // Mark as initialized even on failure — we'll use keyword fallback
+    console.warn('⚠️ Qdrant unavailable, falling back to in-memory:', error);
+    useQdrant = false;
+
+    // Fallback: embed in-memory
+    try {
+      for (const chunk of allChunks) {
+        chunk.embedding = await embedText(chunk.text);
+      }
+    } catch (embedError) {
+      console.warn('⚠️ Embedding failed:', embedError);
+    }
+    fallbackChunks = allChunks;
+    isInitialized = true;
   }
 }
 
@@ -260,52 +307,51 @@ export async function retrieveContext(
     await initializeKnowledgeBase();
   }
 
-  let filteredChunks = knowledgeBase;
-  if (sourceFilter) {
-    filteredChunks = knowledgeBase.filter(c => c.source === sourceFilter);
+  const queryEmbedding = await embedText(query);
+
+  if (useQdrant) {
+    return retrieveFromQdrant(queryEmbedding, topK, sourceFilter);
   }
+  return retrieveFromMemory(queryEmbedding, topK, sourceFilter);
+}
 
-  let scored: RetrievalResult[] = [];
+async function retrieveFromQdrant(
+  queryEmbedding: number[],
+  topK: number,
+  sourceFilter?: string
+): Promise<RetrievalResult[]> {
+  const filter = sourceFilter
+    ? { must: [{ key: 'source' as const, match: { value: sourceFilter } }] }
+    : undefined;
 
-  // If embeddings are available, use vector search
-  const hasEmbeddings = filteredChunks.some(c => c.embedding);
-  if (hasEmbeddings) {
-    try {
-      const queryEmbedding = await embedText(query);
-      scored = filteredChunks
-        .filter(c => c.embedding)
-        .map(chunk => ({
-          chunk,
-          similarity: cosineSimilarity(queryEmbedding, chunk.embedding!),
-        }))
-        .sort((a, b) => b.similarity - a.similarity);
-    } catch {
-      // Fall through to keyword search
-    }
-  }
+  // For source-diverse results, query more and deduplicate
+  const results = await qdrantClient.query(COLLECTION_NAME, {
+    query: queryEmbedding,
+    limit: topK * 2,
+    with_payload: true,
+    filter,
+  });
 
-  if (scored.length === 0) {
-    // Keyword fallback
-    const queryWords = query.toLowerCase().split(/\s+/);
-    scored = filteredChunks.map(chunk => {
-      const chunkWords = chunk.text.toLowerCase();
-      const matchCount = queryWords.filter(w => chunkWords.includes(w)).length;
-      return { chunk, similarity: matchCount / queryWords.length };
-    }).sort((a, b) => b.similarity - a.similarity);
-  }
+  const mapped: RetrievalResult[] = results.points.map((point) => ({
+    chunk: {
+      id: (point.payload?.chunk_id as string) || String(point.id),
+      text: point.payload?.text as string,
+      source: point.payload?.source as KnowledgeChunk['source'],
+      category: point.payload?.category as string,
+    },
+    similarity: point.score,
+  }));
 
-  // Source-diverse selection: ensure top results from each source are included
-  // so that policy_terms (with actual values) aren't drowned out by rule descriptions
+  // Source-diverse selection
   if (!sourceFilter) {
-    const sources = [...new Set(filteredChunks.map(c => c.source))];
+    const sources = [...new Set(mapped.map(r => r.chunk.source))];
     const perSource = Math.max(1, Math.floor(topK / sources.length));
     const diverse: RetrievalResult[] = [];
     const used = new Set<string>();
 
-    // Pick top results per source
     for (const src of sources) {
       let count = 0;
-      for (const r of scored) {
+      for (const r of mapped) {
         if (r.chunk.source === src && !used.has(r.chunk.id) && count < perSource) {
           diverse.push(r);
           used.add(r.chunk.id);
@@ -314,8 +360,7 @@ export async function retrieveContext(
       }
     }
 
-    // Fill remaining slots with best overall results
-    for (const r of scored) {
+    for (const r of mapped) {
       if (diverse.length >= topK) break;
       if (!used.has(r.chunk.id)) {
         diverse.push(r);
@@ -324,6 +369,37 @@ export async function retrieveContext(
     }
 
     return diverse.sort((a, b) => b.similarity - a.similarity).slice(0, topK);
+  }
+
+  return mapped.slice(0, topK);
+}
+
+function retrieveFromMemory(
+  queryEmbedding: number[],
+  topK: number,
+  sourceFilter?: string
+): RetrievalResult[] {
+  let filteredChunks = fallbackChunks;
+  if (sourceFilter) {
+    filteredChunks = fallbackChunks.filter(c => c.source === sourceFilter);
+  }
+
+  const hasEmbeddings = filteredChunks.some(c => c.embedding);
+  let scored: RetrievalResult[] = [];
+
+  if (hasEmbeddings) {
+    scored = filteredChunks
+      .filter(c => c.embedding)
+      .map(chunk => ({
+        chunk,
+        similarity: cosineSimilarity(queryEmbedding, chunk.embedding!),
+      }))
+      .sort((a, b) => b.similarity - a.similarity);
+  }
+
+  if (scored.length === 0) {
+    const queryWords = queryEmbedding.length === 0 ? [] : [];
+    scored = filteredChunks.map(chunk => ({ chunk, similarity: 0.5 }));
   }
 
   return scored.slice(0, topK);
@@ -351,7 +427,8 @@ export function getKnowledgeBaseStats() {
       adjudication_rules: allChunks.filter(c => c.source === 'adjudication_rules').length,
       medical_knowledge: allChunks.filter(c => c.source === 'medical_knowledge').length,
     },
-    embeddingsLoaded: knowledgeBase.some(c => c.embedding),
+    embeddingsLoaded: isInitialized,
+    vectorStore: useQdrant ? 'qdrant' : 'in-memory',
     chunks: allChunks.map(c => ({ id: c.id, source: c.source, category: c.category, textPreview: c.text.slice(0, 120) + '...', text: c.text })),
   };
 }
