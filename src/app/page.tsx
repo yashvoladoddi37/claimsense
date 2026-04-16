@@ -16,6 +16,7 @@ import {
   CounterfactualsList,
   PolicyReferences,
 } from "@/components/ClaimBreakdown";
+import { VoiceClaimPanel } from "@/components/VoiceClaimPanel";
 
 // --- Types ---
 interface StepResult { step: string; passed: boolean; decision_impact: string; reasons: string[]; details: string; adjustments?: Record<string, unknown>; }
@@ -400,7 +401,7 @@ export default function SubmitClaim() {
       <div className="flex-1 min-w-0 space-y-6">
         <div className="text-center pt-4 relative">
           <h1 className="text-2xl font-semibold tracking-tight" style={{ color: '#141413' }}>Submit New Claim</h1>
-          <p className="text-sm mt-1" style={{ color: '#5e5d59' }}>Upload documents or paste JSON — claim details are extracted automatically</p>
+          <p className="text-sm mt-1" style={{ color: '#5e5d59' }}>Use voice, upload documents, or paste JSON — claim details are extracted automatically</p>
           <Button
             variant="outline"
             size="sm"
@@ -416,6 +417,9 @@ export default function SubmitClaim() {
             Reset All Claims
           </Button>
         </div>
+
+        {/* ====== VOICE ASSISTANT ====== */}
+        <VoiceClaimPanel />
 
         {/* Preview Panel */}
         {previewDoc && (
